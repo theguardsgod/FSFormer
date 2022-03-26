@@ -10,7 +10,7 @@ import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scheduler
 from torch.utils.data import Dataset, DataLoader
 from dataloader import Mydataset
-from evaluation import evaluate_model
+
 from tab import TabTransformer
 from loader_helper        import LoaderHelper
 
@@ -254,7 +254,7 @@ def train_loop(model_in, train_dl, test_dl, epochs, uuid_, k_folds):
             save_weights(model_in, uuid_, epoch = i, fold=k_folds)
             plt.plot(range(i+1),loss_fig)
             plt.plot(range(i+1),eva_fig)
-            plt.savefig("./figures/"+uuid_+'/'+str(k_folds) + 'eva.png')        
+            plt.savefig("../figures/"+uuid_+'/'+str(k_folds) + 'eva.png')        
 
         if accuracy >= best_acc:
            save_best_weights(model_in, uuid_,k_folds)
@@ -271,10 +271,11 @@ def train_loop(model_in, train_dl, test_dl, epochs, uuid_, k_folds):
 def train_camull( k_folds=5, model=None, epochs=40):
     '''The function for training the camull network'''
     
-    uuid_ = "Tab_{date:%Y-%m-%d_%H%M%S}".format(date=datetime.datetime.now())
+    uuid_ = "TabIntru_{date:%Y-%m-%d_%H%M%S}".format(date=datetime.datetime.now())
     ld_helper = LoaderHelper()
     model_cop = model
-    os.mkdir("./figures/"+uuid_+'/')
+    datasetName = "intru"
+    os.mkdir("../figures/"+uuid_+'/')
     for k_ind in range(k_folds):
 
         if model_cop is None:
@@ -283,8 +284,8 @@ def train_camull( k_folds=5, model=None, epochs=40):
             model = model_cop
         
         
-        train_data = ld_helper.get_train_dl(k_ind)
-        test_data = ld_helper.get_test_dl(k_ind)
+        train_data = ld_helper.get_train_dl(datasetName,k_ind+1)
+        test_data = ld_helper.get_test_dl(datasetName,k_ind+1)
         train_loop(model, train_data, test_data, epochs, uuid_, k_folds=k_ind+1)
         
 

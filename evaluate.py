@@ -51,7 +51,7 @@ def get_roc_auc(model_in, test_dl, figure=False, path=None, fold=1):
 
         youdens_s = sens + spec - 1
 
-        if (youdens_s > youdens_s_max): 
+        if (youdens_s >= youdens_s_max): 
 
             youdens_s_max = youdens_s; 
             optimal_thresh = thresh
@@ -61,6 +61,7 @@ def get_roc_auc(model_in, test_dl, figure=False, path=None, fold=1):
         
 
     roc_auc = -1
+   
     try:
         roc_auc = auc(fpr, tpr)
     except Exception as e:
@@ -78,7 +79,7 @@ def get_roc_auc(model_in, test_dl, figure=False, path=None, fold=1):
             path = "../graphs/auc-{date:%Y-%m-%d_%H-%M-%S}.png".format(date=datetime.datetime.now())
         else:
             #append dir
-            path = path + "/auc-fold{}-{date:%Y-%m-%d_%H-%M-%S}.png".format(fold, date=datetime.datetime.now())
+            path = path + "/auc-fold{}.png".format(fold)
         
         plt.figure()
         lw = 2
@@ -101,32 +102,51 @@ def get_metrics(model_in, test_dl, thresh=0.5, param_count=False):
     correct = 0; total = 0
     model_in.eval()
     
-    TP = 0.000001; TN = 0.000001; FP = 0.000001; FN = 0.000001
+    TP = 0.; TN = 0.; FP = 0.; FN = 0.
     
     with torch.no_grad():
         
         for i_batch, sample_batched in enumerate(test_dl):
-            
             batch_X, batch_y  = sample_batched
             batch_X = batch_X.to(DEVICE)
             batch_y = batch_y.cpu()
             net_out = model_in(batch_X).cpu()
 
             net_out = np.array(net_out)
+            batch_y = np.array(batch_y)
             net_out[net_out>thresh] = 1
-            net_out[net_out<thresh] = 0
+            net_out[net_out<=thresh] = 0
+            for i in range(len(sample_batched)): #hard coded batch size of 4
+                
+                
+                
+                if (net_out[i] == batch_y[i]):
+                    
+                    if (batch_y[i] == 0):
+                        TN += 1
+                    elif (batch_y[i] == 1):
+                        TP += 1
+                else:
+                    if (batch_y[i] == 0):
+                        FP += 1
+                    elif (batch_y[i] == 1):
+                        FN += 1
+            
+            
             
             cm = confusion_matrix(batch_y, net_out)
-            zipped = zip((TN, FP, FN, TP), cm.ravel()) #使用zip方法进行连接
-            mapped = map(sum, zipped) #使用sum进行求和计算，map方法映射
-            TN, FP, FN, TP = tuple(mapped)
+            # print(cm)
+            # zipped = zip((TN, FP, FN, TP), (cm[0][0],cm[0][1],cm[1][0],cm[1][1])) #使用zip方法进行连接
+            # mapped = map(sum, zipped) #使用sum进行求和计算，map方法映射
+            
+            # TN, FP, FN, TP = tuple(mapped)
             
 
             
     
     accuracy = round((TP + TN)/(TN + FP + FN + TP), 4)
-    sensitivity = round((TP / (TP + FN)), 4)
-    specificity = round((TN / (TN + FP)), 4)
+    sensitivity = round((TP / (TP + FN + 0.00000001)), 4)
+    specificity = round((TN / (TN + FP + 0.00000001)), 4)
 
     
     
@@ -141,12 +161,12 @@ def evaluate_model( k_folds=5):
     
     
     ld_helper = LoaderHelper()
-    uuid = "Tab_2022-03-25_203638"
+    uuid = "TabIntru_2022-03-26_200923"
     
     for k_ind in range(k_folds):
         path = "../weights/"+uuid+"/best_weight_fold_{}".format(k_ind+1)
         model   = load_cam_model(path)
-        test_data = ld_helper.get_test_dl(k_ind)
+        test_data = ld_helper.get_test_dl("intru",k_ind+1)
         if (not os.path.exists("../graphs/" + uuid)) : os.mkdir("../graphs/" + uuid)
         metrics = get_roc_auc(model, test_data, figure=True, path = "../graphs/" + uuid, fold=k_ind+1)
         

@@ -48,18 +48,20 @@ class LoaderHelper:
         self.indices = fold_indices
 
     
-    def get_train_dl(self, fold_ind, shuffle=True):
-
-        train_ds = Subset(self.dataset, self.indices[fold_ind][0])
-        train_dl = DataLoader(train_ds, batch_size=64, shuffle=shuffle, num_workers=0, drop_last=True)
+    def get_train_dl(self, datasetName, fold_ind, shuffle=True):
+        path = "../data/{}/{}_train_{}.mat".format(datasetName,datasetName,fold_ind)
+        dataset = Mydataset(dataPath=path)
+        
+        train_dl = DataLoader(dataset, batch_size=64, shuffle=shuffle, num_workers=0, drop_last=True)
 
         return train_dl
 
 
-    def get_test_dl(self, fold_ind, shuffle=True):
+    def get_test_dl(self, datasetName, fold_ind, shuffle=True):
 
-        test_ds = Subset(self.dataset, self.indices[fold_ind][1])
-        test_dl = DataLoader(test_ds, batch_size=64, shuffle=shuffle, num_workers=0, drop_last=True)
+        path = "../data/{}/{}_test_{}.mat".format(datasetName,datasetName,fold_ind)
+        dataset = Mydataset(dataPath=path)
+        test_dl = DataLoader(dataset, batch_size=64, shuffle=shuffle, num_workers=0, drop_last=True)
 
         return test_dl
 
