@@ -10,11 +10,12 @@ import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scheduler
 from torch.utils.data import Dataset, DataLoader
 from dataloader import Mydataset
-
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from tab import TabTransformer
 from loader_helper        import LoaderHelper
 from   sklearn.metrics   import auc
 import matplotlib.pyplot as plt
+import numpy as np
 
 if torch.cuda.is_available():
     DEVICE = torch.device("cuda:0")
@@ -38,15 +39,15 @@ def get_roc_auc(model_in, test_dl, figure=False, path=None, fold=1):
     opt_acc = 0; opt_sens = 0; opt_spec = 0
     youdens_s_max = 0
     optimal_thresh = 0
-
+    labels = ['False', 'True']
     print("Walking through thresholds.")
     for t in range(0, 10, 1):
 
         thresh = t/10
-        acc, sens, spec = get_metrics(model_in, test_dl, thresh)
+        acc, sens, spec, cm = get_metrics(model_in, test_dl, thresh)
         tpr.append(sens)
         fpr.append(1 - spec)
-
+        
 
         youdens_s = sens + spec - 1
 
@@ -54,7 +55,7 @@ def get_roc_auc(model_in, test_dl, figure=False, path=None, fold=1):
 
             youdens_s_max = youdens_s; 
             optimal_thresh = thresh
-            opt_acc = acc; opt_sens = sens; opt_spec = spec
+            opt_acc = acc; opt_sens = sens; opt_spec = spec; opt_cm = cm
 
         
         
@@ -65,7 +66,12 @@ def get_roc_auc(model_in, test_dl, figure=False, path=None, fold=1):
     except Exception as e:
         print(e)
     metrics = [opt_acc, opt_sens, opt_spec, roc_auc, youdens_s_max, optimal_thresh]
-
+    
+    
+    print("ACC = {}, BACC = {}, AUC = {}, SENS = {}, SPEC={}".format(opt_acc,(opt_sens+opt_spec)/2,roc_auc,opt_sens,opt_spec))
+    disp = ConfusionMatrixDisplay(confusion_matrix=opt_cm, display_labels=labels)
+    disp.plot()
+    plt.savefig(path + "/confusionMatrix{}.png".format(fold))
     if(figure):
 
         if (path == None):
@@ -103,40 +109,28 @@ def get_metrics(model_in, test_dl, thresh=0.5, param_count=False):
             
             batch_X, batch_y  = sample_batched
             batch_X = batch_X.to(DEVICE)
-            batch_y = batch_y.to(DEVICE)
+            batch_y = batch_y.cpu()
+            net_out = model_in(batch_X).cpu()
+
+            net_out = np.array(net_out)
+            net_out[net_out>thresh] = 1
+            net_out[net_out<thresh] = 0
             
-            for i in range(len(batch_X)): #hard coded batch size of 4
-                
-                real_class = batch_y[i].item()
-                X = batch_X[i].unsqueeze(0)
-                
-                net_out = model_in(X)
-                predicted_class = 1 if net_out > thresh else 0
-                
-                if (predicted_class == real_class):
-                    correct += 1
-                    if (real_class == 0):
-                        TN += 1
-                    elif (real_class == 1):
-                        TP += 1
-                else:
-                    if (real_class == 0):
-                        FP += 1
-                    elif (real_class == 1):
-                        FN += 1
-                    
-                    
-                total += 1
+            cm = confusion_matrix(batch_y, net_out)
+            zipped = zip((TN, FP, FN, TP), cm.ravel()) #使用zip方法进行连接
+            mapped = map(sum, zipped) #使用sum进行求和计算，map方法映射
+            TN, FP, FN, TP = tuple(mapped)
+            
 
             
     
-    accuracy = round(correct/total, 4)
+    accuracy = round((TP + TN)/(TN + FP + FN + TP), 4)
     sensitivity = round((TP / (TP + FN)), 4)
     specificity = round((TN / (TN + FP)), 4)
 
     
     
-    return (accuracy, sensitivity, specificity)
+    return (accuracy, sensitivity, specificity, cm)
     
 def load_cam_model(path):
     model = torch.load(path)
