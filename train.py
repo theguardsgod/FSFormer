@@ -75,10 +75,10 @@ def load_model():
 
     return model
 
-def build_arch():
+def build_arch(num_features):
     '''Function for instantiating the pytorch neural network object'''
     net = TabTransformer(
-            num_features = 71,
+            num_features = num_features,
             dim = 64,                           # dimension, paper set at 32
                        # binary prediction, but could be anything
             depth = 6,                          # depth, paper recommended 6
@@ -225,6 +225,7 @@ def train_loop(model_in, train_dl, test_dl, epochs, uuid_, k_folds):
     else:
         filein     = open(log_path, 'w')
     print("k = {}".format(k_folds))
+    fig1 = plt.figure(1)
     # Train
     for i in range(epochs):
         loss = 0.0
@@ -252,8 +253,11 @@ def train_loop(model_in, train_dl, test_dl, epochs, uuid_, k_folds):
         filein.write("Epoch: {}/{}, evaluation loss: {}\n".format(i, epochs,(accuracy, sensitivity, specificity)))
         if i % 10 == 0 and i != 0:
             save_weights(model_in, uuid_, epoch = i, fold=k_folds)
-            plt.plot(range(i+1),loss_fig)
-            plt.plot(range(i+1),eva_fig)
+            plt.plot(range(i+1),loss_fig,ls="-", lw=2,label="training loss")
+            plt.plot(range(i+1),eva_fig,ls="-", lw=2,label="evaluation loss")
+            plt.xlabel('Epochs')
+            plt.ylabel('Loss')
+            plt.title('Training curve - Fold {}'.format(k_folds))
             plt.savefig("../figures/"+uuid_+'/'+str(k_folds) + 'eva.png')        
 
         if accuracy >= best_acc:
@@ -264,6 +268,8 @@ def train_loop(model_in, train_dl, test_dl, epochs, uuid_, k_folds):
             scheduler_warm.step() 
         else:            
             scheduler.step(loss)
+        
+    plt.close(fig1)
     
     
 
@@ -271,21 +277,22 @@ def train_loop(model_in, train_dl, test_dl, epochs, uuid_, k_folds):
 def train_camull( k_folds=5, model=None, epochs=40):
     '''The function for training the camull network'''
     
-    uuid_ = "TabIntru_{date:%Y-%m-%d_%H%M%S}".format(date=datetime.datetime.now())
+    uuid_ = "TabIntrusmote_{date:%Y-%m-%d_%H%M%S}".format(date=datetime.datetime.now())
     ld_helper = LoaderHelper()
     model_cop = model
-    datasetName = "intru"
+    datasetName = "intrusmote"
+    num_features = 71
     os.mkdir("../figures/"+uuid_+'/')
     for k_ind in range(k_folds):
 
         if model_cop is None:
-            model = build_arch()
+            model = build_arch(num_features=num_features)
         else:
             model = model_cop
         
         
-        train_data = ld_helper.get_train_dl(datasetName,k_ind+1)
-        test_data = ld_helper.get_test_dl(datasetName,k_ind+1)
+        train_data = ld_helper.get_train_dl(datasetName,k_ind+1,num_features)
+        test_data = ld_helper.get_test_dl(datasetName,k_ind+1,num_features)
         train_loop(model, train_data, test_data, epochs, uuid_, k_folds=k_ind+1)
         
 

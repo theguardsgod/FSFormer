@@ -247,6 +247,7 @@ class TabTransformer(nn.Module):
         x = self.fc1(x)
         x = self.bn(x)
         x = self.relu(x)
+        
         x = self.fc2(x)
         # 
         # out = F.relu(x, inplace=True)

@@ -10,12 +10,7 @@ class LoaderHelper:
     '''An abstract class for assisting with dataset creation.'''
     def __init__(self):
 
-        self.dataset = Mydataset(dataPath="../Intrusiondatasmote.mat")
-
-        
-
-        self.indices = []
-        self.set_indices()
+        self=self
 
 
 
@@ -48,20 +43,20 @@ class LoaderHelper:
         self.indices = fold_indices
 
     
-    def get_train_dl(self, datasetName, fold_ind, shuffle=True):
+    def get_train_dl(self, datasetName, fold_ind, num_features, shuffle=False):
         path = "../data/{}/{}_train_{}.mat".format(datasetName,datasetName,fold_ind)
-        dataset = Mydataset(dataPath=path)
+        dataset = Mydataset(dataPath=path,num_features=num_features)
         
-        train_dl = DataLoader(dataset, batch_size=64, shuffle=shuffle, num_workers=0, drop_last=True)
+        train_dl = DataLoader(dataset, batch_size=128, shuffle=shuffle, num_workers=0, drop_last=True)
 
         return train_dl
 
 
-    def get_test_dl(self, datasetName, fold_ind, shuffle=True):
+    def get_test_dl(self, datasetName, fold_ind,num_features, shuffle=False):
 
         path = "../data/{}/{}_test_{}.mat".format(datasetName,datasetName,fold_ind)
-        dataset = Mydataset(dataPath=path)
-        test_dl = DataLoader(dataset, batch_size=64, shuffle=shuffle, num_workers=0, drop_last=True)
+        dataset = Mydataset(dataPath=path,num_features=num_features)
+        test_dl = DataLoader(dataset, batch_size=128, shuffle=shuffle, num_workers=0, drop_last=True)
 
         return test_dl
 

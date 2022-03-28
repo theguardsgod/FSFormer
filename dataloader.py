@@ -9,15 +9,15 @@ import torch
 
 class Mydataset(Dataset):
  #传递数据路径，csv路径 ，数据增强方法
-    def __init__(self, dataPath, istest=False, transform=None, target_transform=None):
+    def __init__(self, dataPath, num_features, istest=False, transform=None, target_transform=None):
         super(Mydataset, self).__init__()
         #一个个往列表里面加绝对路径
         self.path = []
         #读取csv
     
         self.data = np.array(scio.loadmat(dataPath)['data'])
-        self.x = self.data[:,0:71]
-        self.y = self.data[:,71]
+        self.x = self.data[:,0:num_features]
+        self.y = self.data[:,num_features]
         
         
      #  最关键的部分，在这里使用前面的方法
