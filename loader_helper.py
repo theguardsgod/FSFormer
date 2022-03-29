@@ -43,7 +43,7 @@ class LoaderHelper:
         self.indices = fold_indices
 
     
-    def get_train_dl(self, datasetName, fold_ind, num_features, shuffle=False):
+    def get_train_dl(self, datasetName, fold_ind, num_features, shuffle=True):
         path = "../data/{}/{}_train_{}.mat".format(datasetName,datasetName,fold_ind)
         dataset = Mydataset(dataPath=path,num_features=num_features)
         
@@ -52,7 +52,7 @@ class LoaderHelper:
         return train_dl
 
 
-    def get_test_dl(self, datasetName, fold_ind,num_features, shuffle=False):
+    def get_test_dl(self, datasetName, fold_ind,num_features, shuffle=True):
 
         path = "../data/{}/{}_test_{}.mat".format(datasetName,datasetName,fold_ind)
         dataset = Mydataset(dataPath=path,num_features=num_features)

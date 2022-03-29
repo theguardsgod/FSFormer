@@ -28,23 +28,32 @@ else:
 
 def get_pred(model_in, test_dl):
         
-    correct = 0; total = 0
+    
     model_in.eval()
     
-    TP = 0.; TN = 0.; FP = 0.; FN = 0.
-    pred = []
+    
+    
+    
     with torch.no_grad():
         
         for i_batch, sample_batched in enumerate(test_dl):
+            
             batch_X, batch_y  = sample_batched
             batch_X = batch_X.to(DEVICE)
             batch_y = batch_y.cpu()
             net_out = model_in(batch_X).cpu()
-            net_out = np.array(net_out)
-            pred.append(net_out)
+            if i_batch is 0:
+                pred = net_out
+                y = batch_y
+            else:
+                pred = torch.cat((pred, net_out), 0)
+                y = torch.cat((y, batch_y), 0)
+
+            
+            
     
     
-    return pred
+    return pred,y
     
 
 def get_roc_auc(model_in, test_dl, figure=False, path=None, fold=1):
@@ -59,10 +68,11 @@ def get_roc_auc(model_in, test_dl, figure=False, path=None, fold=1):
     optimal_thresh = 0
     labels = ['False', 'True']
     print("Walking through thresholds.")
+    pred, y = get_pred(model_in, test_dl)
     for t in range(0, 10, 1):
 
         thresh = t/10
-        acc, sens, spec, cm = get_metrics(model_in, test_dl, thresh)
+        acc, sens, spec, cm = get_metrics(pred, y,thresh)
         tpr.append(sens)
         fpr.append(1 - spec)
         
@@ -77,7 +87,7 @@ def get_roc_auc(model_in, test_dl, figure=False, path=None, fold=1):
 
         
         
-
+    
     roc_auc = -1
    
     try:
@@ -115,51 +125,40 @@ def get_roc_auc(model_in, test_dl, figure=False, path=None, fold=1):
     return metrics
 
 
-def get_metrics(model_in, test_dl, thresh=0.5, param_count=False):
+def get_metrics(net_out, y, thresh, param_count=False):
         
     correct = 0; total = 0
-    model_in.eval()
+    
     
     TP = 0.; TN = 0.; FP = 0.; FN = 0.
     
-    with torch.no_grad():
+    
+            
+    pred = []
+    for i in range(len(y)): #hard coded batch size of 4
         
-        for i_batch, sample_batched in enumerate(test_dl):
-            batch_X, batch_y  = sample_batched
-            batch_X = batch_X.to(DEVICE)
-            batch_y = batch_y.cpu()
-            net_out = model_in(batch_X).cpu()
-
-            # net_out = np.array(net_out)
-            # batch_y = np.array(batch_y)
-            # net_out[net_out>thresh] = 1
-            # net_out[net_out<=thresh] = 0
+        
+        pred.append(1) if net_out[i] > thresh else pred.append(0)
+        if (pred[i] == y[i]):
             
-            pred = []
-            for i in range(len(batch_X)): #hard coded batch size of 4
-                
-                
-                pred.append(1) if net_out[i] > thresh else pred.append(0)
-                if (pred[i] == batch_y[i]):
-                    
-                    if (batch_y[i] == 0):
-                        TN += 1
-                    elif (batch_y[i] == 1):
-                        TP += 1
-                else:
-                    if (batch_y[i] == 0):
-                        FP += 1
-                    elif (batch_y[i] == 1):
-                        FN += 1
-            
-            
-            
-            cm = confusion_matrix(batch_y, pred)
-            # print(cm)
-            # zipped = zip((TN, FP, FN, TP), (cm[0][0],cm[0][1],cm[1][0],cm[1][1])) #使用zip方法进行连接
-            # mapped = map(sum, zipped) #使用sum进行求和计算，map方法映射
-            
-            # TN, FP, FN, TP = tuple(mapped)
+            if (y[i] == 0):
+                TN += 1
+            elif (y[i] == 1):
+                TP += 1
+        else:
+            if (y[i] == 0):
+                FP += 1
+            elif (y[i] == 1):
+                FN += 1
+    
+    
+    
+    cm = confusion_matrix(y, pred)
+    # print(cm)
+    # zipped = zip((TN, FP, FN, TP), (cm[0][0],cm[0][1],cm[1][0],cm[1][1])) #使用zip方法进行连接
+    # mapped = map(sum, zipped) #使用sum进行求和计算，map方法映射
+    
+    # TN, FP, FN, TP = tuple(mapped)
             
 
             
@@ -181,12 +180,12 @@ def evaluate_model( k_folds=5):
     
     
     ld_helper = LoaderHelper()
-    uuid = "TabIntrusmote_2022-03-28_112432"
-    num_features = 71
+    uuid = "TabBank_2022-03-29_011710"
+    num_features = 20
     for k_ind in range(k_folds):
         path = "../weights/"+uuid+"/best_weight_fold_{}".format(k_ind+1)
         model   = load_cam_model(path)
-        test_data = ld_helper.get_test_dl("intrusmote",k_ind+1,num_features)
+        test_data = ld_helper.get_test_dl("bank",k_ind+1,num_features)
         if (not os.path.exists("../graphs/" + uuid)) : os.mkdir("../graphs/" + uuid)
         metrics = get_roc_auc(model, test_data, figure=True, path = "../graphs/" + uuid, fold=k_ind+1)
         

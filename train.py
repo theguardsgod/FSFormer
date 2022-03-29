@@ -277,11 +277,11 @@ def train_loop(model_in, train_dl, test_dl, epochs, uuid_, k_folds):
 def train_camull( k_folds=5, model=None, epochs=40):
     '''The function for training the camull network'''
     
-    uuid_ = "TabIntrusmote_{date:%Y-%m-%d_%H%M%S}".format(date=datetime.datetime.now())
+    uuid_ = "TabBank_{date:%Y-%m-%d_%H%M%S}".format(date=datetime.datetime.now())
     ld_helper = LoaderHelper()
     model_cop = model
-    datasetName = "intrusmote"
-    num_features = 71
+    datasetName = "bank"
+    num_features = 20
     os.mkdir("../figures/"+uuid_+'/')
     for k_ind in range(k_folds):
 
