@@ -13,7 +13,7 @@ from dataloader import Mydataset
 
 from tab import TabTransformer
 from loader_helper        import LoaderHelper
-import time
+
 import matplotlib.pyplot as plt
 
 if torch.cuda.is_available():
@@ -274,9 +274,9 @@ def train_camull( k_folds=5, model=None, epochs=40):
     '''The function for training the camull network'''
     
     # Parameter
-    lr=0.001; weight_decay=5e-9
+    lr=0.000001; weight_decay=5e-9
     
-    uuid_ = "TabBank_{date:%Y-%m-%d_%H%M%S}".format(date=datetime.datetime.now())
+    uuid_ = "TabCan_{date:%Y-%m-%d_%H%M%S}".format(date=datetime.datetime.now())
     log_path = "../train_log/" + uuid_ +".txt"
 
     if (os.path.exists(log_path)):
@@ -287,8 +287,8 @@ def train_camull( k_folds=5, model=None, epochs=40):
     filein.write("lr={}; weight_decay={}\n".format(lr,weight_decay))
     ld_helper = LoaderHelper()
     model_cop = model
-    datasetName = "bank"
-    num_features = 20
+    datasetName = "can"
+    num_features = 1000
     os.mkdir("../figures/"+uuid_+'/')
     for k_ind in range(k_folds):
 
@@ -318,10 +318,10 @@ def main():
     #NC v AD
     
 
-    start = time.time()
+    
     model_uuid = train_camull(epochs=50)
-    end = time.time()
-    print("循环运行时间:%.2f秒"%(end-start))
+
+
     #ld_helper = LoaderHelper(task=Task.sMCI_v_pMCI)
     
     #model_uuid = "Densenet_2022-01-22_14:36:19"

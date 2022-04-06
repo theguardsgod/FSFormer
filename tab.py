@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 from torch import nn, einsum
-
+import numpy as np
 from einops import rearrange
 
 # helpers
@@ -29,9 +29,21 @@ class Filter(nn.Module):
 
     def forward(self, x, **kwargs):
         cls  = x.permute(1,0,2)[0].unsqueeze(1)
+        # print(self.fn(x, **kwargs).shape)
+        
+        
+        # if i==6:
+        #     test = self.fn(x, **kwargs).cpu()[0].reshape(20).numpy()
+        #     print(test)
+        #     print(np.where(test > 0)[0])
+        #     print(self.fn(x, **kwargs) * x.permute(1,0,2)[1:].permute(1,0,2))
+        #     # x = torch.cat([cls, x], dim=1)
         
         x = self.fn(x, **kwargs) * x.permute(1,0,2)[1:].permute(1,0,2)
+        
+        
         x = torch.cat([cls, x], dim=1)
+        
         return x
 
 class PreNorm(nn.Module):
@@ -110,11 +122,12 @@ class FSAttention(nn.Module):
 
         self.to_kv = nn.Linear(dim, dim * 2, bias = False)
         self.to_q = nn.Linear(dim, dim, bias = False)
-        
+        self.sig  = nn.Sigmoid()
         
         self.relu = nn.ReLU(inplace=True)
         self.dropout = nn.Dropout(dropout)
         self.out = nn.Linear(dim, 1, bias = False)
+        self.bn = nn.BatchNorm1d(64)
 
     def forward(self, x):
         h = self.heads
@@ -126,14 +139,18 @@ class FSAttention(nn.Module):
 
         # print(q.shape,k.shape,v.shape)
         attn = einsum('b h i d, b h j d -> b h i j', q, k) * self.scale
-
+        attn = self.sig(attn)
+        # print(attn.shape)
         
         #attn = self.dropout(attn)
 
         out = einsum('b h i j, b h j d -> b h i d', attn, v)
-        
+        # print(out.shape)
         out = rearrange(out, 'b h n d -> b n (h d)', h = h)
+        
+        # print(out.cpu().numpy())
         out = self.out(out)
+        # print(out.cpu().reshape(80).numpy())
         return self.relu(out)
 
 # transformer
@@ -148,16 +165,22 @@ class FSFormer(nn.Module):
             self.layers.append(nn.ModuleList([
                 Residual(PreNorm(dim, Attention(dim, heads = heads, dropout = attn_dropout))),
                 Residual(PreNorm(dim, FeedForward(dim, dropout = ff_dropout))),
-                Filter(PreNorm(dim, FSAttention(dim, heads = heads, dropout = attn_dropout))),
+                
             ]))
+            
+        
+                
+        self.fsattn=  Filter(PreNorm(dim, FSAttention(dim, heads = heads, dropout = attn_dropout)))
+        
 
     def forward(self, x):
         
-        
-        for attn, ff, fsattn in self.layers:
+       
+        for attn, ff in self.layers:
+            
             x = attn(x)
             x = ff(x)
-            x = fsattn(x)
+        x = self.fsattn(x)
         return x
 # mlp
 
@@ -211,12 +234,12 @@ class TabTransformer(nn.Module):
             attn_dropout = attn_dropout,
             ff_dropout = ff_dropout
         )
-        self.fc1 = nn.Linear(num_features+1, 50)
-        self.fc2 = nn.Linear(50, 1)
+        self.fc1 = nn.Linear(num_features+1, 500)
+        self.fc2 = nn.Linear(500, 1)
         self.avgpool = nn.AdaptiveAvgPool2d((1, None))
         
         self.pooling = nn.AdaptiveAvgPool2d((None, 1))
-        self.bn = nn.BatchNorm1d(50)
+        self.bn = nn.BatchNorm1d(500)
         self.sig  = nn.Sigmoid()
         self.relu = nn.ReLU(inplace=True)
 
@@ -239,7 +262,7 @@ class TabTransformer(nn.Module):
         x = self.transformer(x)
         
         
-
+        
         x = self.pooling(x)
         
         x = torch.flatten(x, 1)

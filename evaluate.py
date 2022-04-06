@@ -16,6 +16,7 @@ from loader_helper        import LoaderHelper
 from   sklearn.metrics   import auc
 import matplotlib.pyplot as plt
 import numpy as np
+import time
 
 if torch.cuda.is_available():
     DEVICE = torch.device("cuda:0")
@@ -56,7 +57,7 @@ def get_pred(model_in, test_dl):
     return pred,y
     
 
-def get_roc_auc(model_in, test_dl, figure=False, path=None, fold=1):
+def get_roc_auc(model_in, test_dl, filein,figure=False, path=None, fold=1,):
     
     fpr = [] #1-specificity
     tpr = []
@@ -69,6 +70,7 @@ def get_roc_auc(model_in, test_dl, figure=False, path=None, fold=1):
     labels = ['False', 'True']
     print("Walking through thresholds.")
     pred, y = get_pred(model_in, test_dl)
+    
     for t in range(0, 10, 1):
 
         thresh = t/10
@@ -96,7 +98,7 @@ def get_roc_auc(model_in, test_dl, figure=False, path=None, fold=1):
         print(e)
     metrics = [opt_acc, opt_sens, opt_spec, roc_auc, youdens_s_max, optimal_thresh]
     
-    
+    filein.write("ACC = {}, BACC = {}, AUC = {}, SENS = {}, SPEC={}".format(opt_acc,(opt_sens+opt_spec)/2,roc_auc,opt_sens,opt_spec))
     print("ACC = {}, BACC = {}, AUC = {}, SENS = {}, SPEC={}".format(opt_acc,(opt_sens+opt_spec)/2,roc_auc,opt_sens,opt_spec))
     disp = ConfusionMatrixDisplay(confusion_matrix=opt_cm, display_labels=labels)
     disp.plot()
@@ -180,14 +182,23 @@ def evaluate_model( k_folds=5):
     
     
     ld_helper = LoaderHelper()
-    uuid = "TabBank_2022-03-29_011710"
+    uuid = "TabBank_2022-04-06_103730"
     num_features = 20
+    log_path = "../train_log/" + uuid +".txt"
+    dataset = "bank"
+
+    if (os.path.exists(log_path)):
+        filein     = open(log_path, 'a')
+    else:
+        filein     = open(log_path, 'w')
+
     for k_ind in range(k_folds):
         path = "../weights/"+uuid+"/best_weight_fold_{}".format(k_ind+1)
+        # path = "../weights/"+uuid+"/fold_1_epoch40_weights-2022-03-31_182202"
         model   = load_cam_model(path)
-        test_data = ld_helper.get_test_dl("bank",k_ind+1,num_features)
+        test_data = ld_helper.get_test_dl(dataset,k_ind+1,num_features)
         if (not os.path.exists("../graphs/" + uuid)) : os.mkdir("../graphs/" + uuid)
-        metrics = get_roc_auc(model, test_data, figure=True, path = "../graphs/" + uuid, fold=k_ind+1)
+        metrics = get_roc_auc(model, test_data, figure=True, path = "../graphs/" + uuid, fold=k_ind+1,filein=filein)
         
         
 
